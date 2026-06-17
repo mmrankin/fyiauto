@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}{{ v.year }} {{ v.make }} {{ v.model }} {{ v.trim }} · fyiAuto{% endblock %}
+
+{% block body %}
+<main class="vdp">
+  <a class="back" href="javascript:history.back()">‹ Back to results</a>
+
+  <div class="vdp-grid">
+    <section class="gallery">
+      {% if v.photos %}
+        <img id="mainPhoto" class="main-photo" src="{{ v.photos[0].url }}"
+             alt="{{ v.year }} {{ v.make }} {{ v.model }}">
+        {% if v.photos|length > 1 %}
+        <div class="thumbs">
+          {% for p in v.photos %}
+            <img src="{{ p.url }}" data-full="{{ p.url }}"
+                 class="thumb {{ 'active' if loop.first else '' }}" loading="lazy"
+                 onclick="document.getElementById('mainPhoto').src=this.dataset.full;
+                          document.querySelectorAll('.thumb').forEach(t=>t.classList.remove('active'));
+                          this.classList.add('active');">
+          {% endfor %}
+        </div>
+        {% endif %}
+      {% else %}
+        <div class="main-photo nophoto-lg">📷 No photos available</div>
+      {% endif %}
+    </section>
+
+    <section class="summary">
+      <h1>{{ v.year or '' }} {{ v.make or 'Vehicle' }} {{ v.model or '' }}</h1>
+      <div class="sub">{{ v.trim or '' }}{% if v.body %} · {{ v.body }}{% endif %}</div>
+      <div class="price-row">
+        <span class="price">{{ v.price|money }}</span>
+        {% if v.msrp and v.msrp > v.price and v.price > 0 %}
+          <span class="msrp">MSRP {{ v.msrp|money }}</span>
+        {% endif %}
+      </div>
+      <a class="cta" href="{{ check_url }}" target="_blank" rel="noopener">Check Availability</a>
+
+      <div class="keyfacts">
+        <div><label>Mileage</label>{{ v.mileage|miles }}</div>
+        <div><label>Condition</label>{{ v.condition|capitalize }}</div>
+        <div><label>Drivetrain</label>{{ v.drivetrain or '—' }}</div>
+        <div><label>Fuel</label>{{ v.fuel_type or '—' }}</div>
+        <div><label>Ext. color</label>{{ v.ext_color or '—' }}</div>
+        <div><label>Int. color</label>{{ v.int_color or '—' }}</div>
+      </div>
+
+      {% if v.dealer %}
+      <div class="dealer">
+        <h3><a class="dealer-link" href="{{ url_for('srp') }}?dealer_id={{ v.dealer.id }}">{{ v.dealer.name or 'Dealer' }}</a></h3>
+        <p>
+          {% if v.dealer.address1 %}{{ v.dealer.address1 }}<br>{% endif %}
+          {{ v.dealer.city }}{% if v.dealer.state %}, {{ v.dealer.state }}{% endif %}
+          {{ v.dealer.postal_code or '' }}
+        </p>
+        {% if v.dealer.latitude and v.dealer.longitude %}
+          <a class="maplink" target="_blank"
+             href="https://maps.google.com/?q={{ v.dealer.latitude }},{{ v.dealer.longitude }}">
+            View on map ›</a>
+        {% endif %}
+      </div>
+      {% endif %}
+    </section>
+  </div>
+
+  <div class="vdp-detail">
+    <section class="specs">
+      <h2>Specifications</h2>
+      <table>
+        <tr><th>VIN</th><td>{{ v.vin }}</td></tr>
+        <tr><th>Stock #</th><td>{{ v.stock_number or '—' }}</td></tr>
+        <tr><th>Year / Make / Model</th><td>{{ v.year or '—' }} {{ v.make or '' }} {{ v.model or '' }}</td></tr>
+        <tr><th>Trim</th><td>{{ v.trim or '—' }}</td></tr>
+        <tr><th>Body</th><td>{{ v.body or '—' }}</td></tr>
+        <tr><th>Engine</th><td>{{ v.engine or '—' }}</td></tr>
+        <tr><th>Transmission</th><td>{{ v.transmission or '—' }}</td></tr>
+        <tr><th>Drivetrain</th><td>{{ v.drivetrain or '—' }}</td></tr>
+        <tr><th>Doors</th><td>{{ v.doors or '—' }}</td></tr>
+        {% if v.mpg_city or v.mpg_highway %}
+        <tr><th>MPG</th><td>{{ v.mpg_city or '—' }} city / {{ v.mpg_highway or '—' }} hwy</td></tr>
+        {% endif %}
+      </table>
+    </section>
+
+    {% if v.options %}
+    <section class="options">
+      <h2>Options &amp; features</h2>
+      <ul>
+        {% for opt in (v.options ~ (',' ~ v.features if v.features else '')).split(',') %}
+          {% if opt.strip() %}<li>{{ opt.strip() }}</li>{% endif %}
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+
+    {% if v.description %}
+    <section class="description">
+      <h2>Description</h2>
+      <p>{{ v.description }}</p>
+    </section>
+    {% endif %}
+  </div>
+
+  {% if related.dealer %}
+  <section class="related">
+    <h2>{% if v.dealer and v.dealer.name %}More from {{ v.dealer.name }}{% else %}More from this dealer{% endif %}</h2>
+    <div class="related-grid">
+      {% for v in related.dealer %}{% include "_card.html" %}{% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if related.others %}
+  <section class="related">
+    <h2>Other inventory you may like</h2>
+    <div class="related-grid">
+      {% for v in related.others %}{% include "_card.html" %}{% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</main>
+{% endblock %}

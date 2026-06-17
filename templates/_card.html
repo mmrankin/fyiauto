@@ -1,0 +1,26 @@
+<a class="card" href="{{ url_for('vdp', vin=v.vin) }}">
+  <div class="card-photo">
+    {% if v.primary_photo %}
+      <img src="{{ v.primary_photo }}" alt="{{ v.year }} {{ v.make }} {{ v.model }}" loading="lazy">
+    {% else %}
+      <div class="nophoto">📷 No photo</div>
+    {% endif %}
+    {% if v.condition %}<span class="badge badge-{{ v.condition }}">{{ v.condition|capitalize }}</span>{% endif %}
+    {% if v.photo_count %}<span class="pcount">{{ v.photo_count }} 📷</span>{% endif %}
+  </div>
+  <div class="card-body">
+    <div class="card-title">
+      {{ v.year or '' }} {{ v.make or 'Vehicle' }} {{ v.model or '' }}
+    </div>
+    <div class="card-trim">{{ v.trim or v.body or '' }}</div>
+    <div class="card-meta">
+      <span class="price">{{ v.price|money }}</span>
+      <span class="miles">{{ v.mileage|miles }}</span>
+    </div>
+    <div class="card-specs">
+      {% if v.drivetrain %}<span>{{ v.drivetrain }}</span>{% endif %}
+      {% if v.fuel_type %}<span>{{ v.fuel_type }}</span>{% endif %}
+      {% if v.ext_color %}<span>{{ v.ext_color }}</span>{% endif %}
+    </div>
+  </div>
+</a>

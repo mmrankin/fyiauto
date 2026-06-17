@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Search inventory · fyiAuto{% endblock %}
+
+{% macro dropdown(name, label, options, valuekey='value') %}
+  <label class="filter">
+    <span>{{ label }}</span>
+    <select name="{{ name }}" data-filter>
+      <option value="any">Any {{ label|lower }}</option>
+      {% for o in options %}
+        <option value="{{ o[valuekey] }}"
+          {{ 'selected' if active.get(name)|string == o[valuekey]|string else '' }}>
+          {{ o[valuekey] }}{% if o.count %} ({{ o.count }}){% endif %}
+        </option>
+      {% endfor %}
+    </select>
+  </label>
+{% endmacro %}
+
+{% block body %}
+<main class="srp">
+  <aside class="filters">
+    <form id="filterForm" method="get" action="{{ url_for('srp') }}">
+      <div class="filters-head">
+        <h2>Filters</h2>
+        <a href="{{ url_for('srp') }}" class="clear">Clear all</a>
+      </div>
+
+      {{ dropdown('condition', 'Condition', facets.condition) }}
+      {{ dropdown('make', 'Make', facets.make) }}
+      {{ dropdown('model', 'Model', facets.model) }}
+      {{ dropdown('body', 'Body style', facets.body) }}
+      {{ dropdown('drivetrain', 'Drivetrain', facets.drivetrain) }}
+      {{ dropdown('fuel_type', 'Fuel', facets.fuel_type) }}
+      {{ dropdown('ext_color', 'Color', facets.ext_color) }}
+
+      <label class="filter">
+        <span>Year</span>
+        <div class="range">
+          <input type="number" name="year_min" placeholder="Min"
+                 value="{{ active.get('year_min','') }}" data-filter>
+          <input type="number" name="year_max" placeholder="Max"
+                 value="{{ active.get('year_max','') }}" data-filter>
+        </div>
+      </label>
+
+      <label class="filter">
+        <span>Price</span>
+        <div class="range">
+          <input type="number" name="price_min" placeholder="{{ bounds.min }}"
+                 value="{{ active.get('price_min','') }}" data-filter>
+          <input type="number" name="price_max" placeholder="{{ bounds.max }}"
+                 value="{{ active.get('price_max','') }}" data-filter>
+        </div>
+      </label>
+
+      <label class="filter">
+        <span>Max mileage</span>
+        <input type="number" name="mileage_max" placeholder="Any"
+               value="{{ active.get('mileage_max','') }}" data-filter>
+      </label>
+
+      {% if active.get('q') %}<input type="hidden" name="q" value="{{ active.get('q') }}">{% endif %}
+      {% if active.get('sort') %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
+      <noscript><button type="submit" class="apply">Apply</button></noscript>
+    </form>
+  </aside>
+
+  <section class="results">
+    {% if dealer %}
+    <div class="dealer-banner">
+      <div>
+        <span class="db-label">Viewing inventory from</span>
+        <strong>{{ dealer.name or 'Dealer #' ~ dealer.id }}</strong>
+        {% if dealer.city %}<span class="db-loc">· {{ dealer.city }}{% if dealer.state %}, {{ dealer.state }}{% endif %}</span>{% endif %}
+      </div>
+      <a href="{{ url_for('srp') }}">Clear dealer ×</a>
+    </div>
+    {% endif %}
+
+    <div class="results-head">
+      <div>
+        <strong id="resultCount">{{ '{:,}'.format(results.total) }}</strong> vehicles
+        {% if active.get('q') %}<span class="chip">“{{ active.get('q') }}”
+          <a href="{{ url_for('srp') }}">×</a></span>{% endif %}
+      </div>
+      <form method="get" class="sortform">
+        {% for k, v in active.items() if k not in ('sort', 'page', 'per_page') %}
+          <input type="hidden" name="{{ k }}" value="{{ v }}">
+        {% endfor %}
+        <label>Show
+          <select name="per_page" onchange="this.form.submit()">
+            {% for n in per_page_options %}
+              <option value="{{ n }}" {{ 'selected' if per_page==n else '' }}>{{ n }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>Sort
+          <select name="sort" onchange="this.form.submit()">
+            {% for val, lbl in sorts %}
+              <option value="{{ val }}" {{ 'selected' if sort==val else '' }}>{{ lbl }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </form>
+    </div>
+
+    <div id="aiNote" class="ai-note"></div>
+
+    <div id="grid" class="grid">
+      {% for v in results.results %}{% include "_card.html" %}{% endfor %}
+    </div>
+
+    {% if not results.results %}
+      <p class="empty">No vehicles match these filters. <a href="{{ url_for('srp') }}">Reset</a></p>
+    {% endif %}
+
+    {% if results.pages > 1 %}
+    <nav class="pager">
+      {% set base = active.to_dict() %}
+      {% if results.page > 1 %}
+        {% set _ = base.update({'page': results.page - 1}) %}
+        <a href="?{{ base|urlencode }}">‹ Prev</a>
+      {% endif %}
+      <span>Page {{ results.page }} of {{ results.pages }}</span>
+      {% if results.page < results.pages %}
+        {% set _ = base.update({'page': results.page + 1}) %}
+        <a href="?{{ base|urlencode }}">Next ›</a>
+      {% endif %}
+    </nav>
+    {% endif %}
+  </section>
+</main>
+{% endblock %}

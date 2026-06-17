@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}fyiAuto{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="site-header">
+   <div class="bar-inner">
+    <a class="brand" href="{{ url_for('srp') }}">fyi<span>Auto</span></a>
+    <form class="ai-bar" id="aiBar" autocomplete="off">
+      <input type="text" id="aiInput" name="q"
+             placeholder="Search AI, VIN, ZIP, city, or dealer — e.g. “red AWD SUV near 55448”">
+      <button type="submit">Search</button>
+    </form>
+    <a class="header-link" href="{{ url_for('srp') }}">Browse all</a>
+    <a class="header-link sell" href="{{ sell_my_car_url }}">Sell My Car</a>
+   </div>
+  </header>
+
+  <nav class="subnav">
+   <div class="bar-inner">
+    <label class="subnav-pick">
+      <span>Shop by</span>
+      <select onchange="if(this.value) window.location=this.value">
+        <option value="">Choose a category…</option>
+        {% for label, qs in quick_picks %}
+          <option value="{{ url_for('srp') }}?{{ qs }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <form class="dealer-search" method="get" action="{{ url_for('dealers') }}">
+      <span class="ds-label">Dealer search</span>
+      <input type="text" name="zip" inputmode="numeric" maxlength="5"
+             placeholder="ZIP code" value="{{ request.args.get('zip','') if request else '' }}">
+      <select name="make">
+        <option value="">Any make</option>
+        {% for m in top_makes %}
+          <option value="{{ m }}" {{ 'selected' if request and request.args.get('make')==m else '' }}>{{ m }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit">Find dealers</button>
+    </form>
+   </div>
+  </nav>
+
+  {% block body %}{% endblock %}
+  <footer class="site-footer">
+    <span>fyiAuto · {{ '{:,}'.format(stats.vehicles) if stats else '' }} vehicles in stock</span>
+  </footer>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

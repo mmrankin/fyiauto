@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Dealer search · fyiAuto{% endblock %}
+
+{% block body %}
+<main class="dealers-page">
+  <h1>
+    {% if make and zip %}{{ make }} dealers near {{ zip }}
+    {% elif make %}{{ make }} dealers
+    {% elif zip %}Dealers near {{ zip }}
+    {% else %}All dealers{% endif %}
+  </h1>
+  <div class="dealers-head">
+    <p class="dealers-count">
+      {{ '{:,}'.format(total) }} dealer{{ '' if total == 1 else 's' }} found
+      {% if zip and zip_scope == 'distance' %}<span class="scope-note ok">· sorted by distance from {{ zip }}</span>
+      {% elif zip and zip_scope == 'region' %}<span class="scope-note">· no exact match for {{ zip }}, showing the {{ zip[:3] }}** area</span>{% endif %}
+    </p>
+    {% if total %}
+    <form method="get" class="sortform">
+      {% if zip %}<input type="hidden" name="zip" value="{{ zip }}">{% endif %}
+      {% if make %}<input type="hidden" name="make" value="{{ make }}">{% endif %}
+      <label>Show
+        <select name="per_page" onchange="this.form.submit()">
+          {% for n in per_page_options %}
+            <option value="{{ n }}" {{ 'selected' if per_page==n else '' }}>{{ n }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </form>
+    {% endif %}
+  </div>
+
+  {% if dealers %}
+  <div class="dealer-list">
+    {% for d in dealers %}
+    <div class="dealer-card">
+      <div class="dealer-info">
+        <h3>{{ d.name or 'Dealer #' ~ d.id }}</h3>
+        <p>
+          {{ d.city }}{% if d.state %}, {{ d.state }}{% endif %} {{ d.postal_code or '' }}
+        </p>
+        <div class="dealer-stats">
+          {% if d.distance_mi is not none %}<span class="pill pill-dist">{{ d.distance_mi }} mi away</span>{% endif %}
+          <span class="pill">{{ d.inventory }} in stock</span>
+          {% if make and d.make_count %}<span class="pill pill-make">{{ d.make_count }} {{ make }}</span>{% endif %}
+        </div>
+      </div>
+      <div class="dealer-actions">
+        {% set q = ('?dealer_id=' ~ d.id) ~ ('&make=' ~ make if make else '') %}
+        <a class="cta-sm" href="{{ url_for('srp') }}{{ q }}">View inventory ›</a>
+        {% if d.latitude and d.longitude %}
+          <a class="maplink" target="_blank"
+             href="https://maps.google.com/?q={{ d.latitude }},{{ d.longitude }}">Map</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if pages > 1 %}
+  <nav class="pager">
+    {% set base = request.args.to_dict() %}
+    {% if page > 1 %}{% set _ = base.update({'page': page - 1}) %}
+      <a href="?{{ base|urlencode }}">‹ Prev</a>{% endif %}
+    <span>Page {{ page }} of {{ pages }}</span>
+    {% if page < pages %}{% set _ = base.update({'page': page + 1}) %}
+      <a href="?{{ base|urlencode }}">Next ›</a>{% endif %}
+  </nav>
+  {% endif %}
+  {% else %}
+    <p class="empty">No dealers match{% if make %} carrying {{ make }}{% endif %}{% if zip %} near {{ zip }}{% endif %}.
+      <a href="{{ url_for('dealers') }}">Show all dealers</a></p>
+  {% endif %}
+</main>
+{% endblock %}

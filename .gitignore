@@ -1,0 +1,16 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Secrets / local config
+.env
+.claude/
+
+# Local SQLite database (huge) + WAL sidecars
+*.db
+*.db-shm
+*.db-wal
+
+# Logs
+*.log
