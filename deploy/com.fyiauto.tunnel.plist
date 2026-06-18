@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Runs the Cloudflare Tunnel for fyiAuto.com as a persistent macOS service.
+     Install:
+       cp deploy/com.fyiauto.tunnel.plist ~/Library/LaunchAgents/
+       launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.fyiauto.tunnel.plist
+     Adjust the cloudflared path (brew is /opt/homebrew/bin on Apple Silicon,
+     /usr/local/bin on Intel). -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.fyiauto.tunnel</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/cloudflared</string>
+        <string>tunnel</string>
+        <string>--config</string>
+        <string>/Users/markrankin/fyiAuto/deploy/cloudflared-config.yml</string>
+        <string>run</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/markrankin/fyiAuto/tunnel.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/markrankin/fyiAuto/tunnel.err.log</string>
+</dict>
+</plist>

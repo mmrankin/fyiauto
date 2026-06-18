@@ -172,6 +172,16 @@ def _build_where(filters):
     return where, params
 
 
+def _count(where, params):
+    conn = connect()
+    try:
+        return conn.execute(
+            f"SELECT COUNT(*) FROM vehicles{where}", params
+        ).fetchone()[0]
+    finally:
+        conn.close()
+
+
 def _fts_query(text):
     """Turn free text into a forgiving FTS5 query: prefix-match each token, OR'd."""
     tokens = [t for t in "".join(c if c.isalnum() else " " for c in text).split() if t]
@@ -187,11 +197,13 @@ def search(filters=None, sort=None, page=1, per_page=24):
     page = max(1, int(page))
     offset = (page - 1) * per_page
 
+    # The COUNT over a broad filter scans millions of rows and is identical for
+    # every page/sort of a filter set, so cache it per sync version. The page
+    # slice itself is fast via the lot_date index.
+    total = _cached("count", filters, lambda: _count(where, params))
+
     conn = connect()
     try:
-        total = conn.execute(
-            f"SELECT COUNT(*) FROM vehicles{where}", params
-        ).fetchone()[0]
         rows = conn.execute(
             f"SELECT * FROM vehicles{where} ORDER BY {order} LIMIT ? OFFSET ?",
             params + [per_page, offset],
@@ -224,7 +236,12 @@ def _sync_version():
 
 
 def _cached(kind, filters, compute):
-    key = (kind, _sync_version(), tuple(sorted((filters or {}).items())))
+    try:
+        key = (kind, _sync_version(),
+               tuple(sorted((filters or {}).items(), key=lambda kv: kv[0])))
+        hash(key)
+    except TypeError:               # unhashable filter value -> skip the cache
+        return compute()
     if key in _cache:
         return _cache[key]
     if len(_cache) > 2000:          # bound memory; drop oldest-ish wholesale

@@ -2,3 +2,4 @@ Flask>=3.0
 python-dotenv>=1.0
 pymssql>=2.2
 anthropic>=0.40
+waitress>=3.0

@@ -1,0 +1,30 @@
+# Cloudflare Tunnel config for fyiAuto.com -> local waitress (port 5055).
+#
+# The tunnel dials OUT to Cloudflare, so the origin host needs no public IP and
+# no inbound firewall rule. Cloudflare handles DNS, TLS and CDN caching.
+#
+# One-time setup (run on the host that serves fyiAuto):
+#   1. brew install cloudflared            # macOS  (Linux: see DEPLOY.md)
+#   2. cloudflared tunnel login            # opens browser; pick the fyiAuto.com zone
+#   3. cloudflared tunnel create fyiauto   # prints a Tunnel UUID + creds json path
+#   4. Put the UUID + creds path below.
+#   5. cloudflared tunnel route dns fyiauto fyiAuto.com
+#      cloudflared tunnel route dns fyiauto www.fyiAuto.com
+#   6. Test:  cloudflared tunnel --config <this file> run
+#      Then run it as a service (see DEPLOY.md / com.fyiauto.tunnel.plist).
+
+tunnel: REPLACE_WITH_TUNNEL_UUID
+credentials-file: /Users/markrankin/.cloudflared/REPLACE_WITH_TUNNEL_UUID.json
+
+# Be tolerant of the cold-start facet queries on novel filter combos.
+originRequest:
+  connectTimeout: 30s
+  noTLSVerify: true
+
+ingress:
+  - hostname: fyiAuto.com
+    service: http://localhost:5055
+  - hostname: www.fyiAuto.com
+    service: http://localhost:5055
+  # Everything else returns 404 instead of reaching the app.
+  - service: http_status:404
