@@ -76,6 +76,17 @@ def _nav_context():
 
 
 @app.context_processor
+def _footer():
+    import datetime
+    return {"current_year": datetime.date.today().year}
+
+
+@app.route("/privacy")
+def privacy():
+    return render_template("privacy.html", stats=local_db.stats())
+
+
+@app.context_processor
 def _assets():
     """Cache-busting static URLs: append the file's mtime so a CSS/JS change
     forces browsers and Cloudflare to fetch the new version immediately."""

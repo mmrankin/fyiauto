@@ -49,7 +49,8 @@
 
   {% block body %}{% endblock %}
   <footer class="site-footer">
-    <span>fyiAuto · {{ '{:,}'.format(stats.vehicles) if stats else '' }} vehicles in stock</span>
+    <a href="{{ url_for('privacy') }}">Privacy Policy</a>
+    <span class="copyright">Copyrights &copy; {{ current_year }} DSRPTV Digital, LLC</span>
   </footer>
   <script src="{{ asset('app.js') }}"></script>
 </body>
