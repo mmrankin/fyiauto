@@ -73,6 +73,19 @@ def _nav_context():
         "top_makes": local_db.top_makes(10),
         "sell_my_car_url": SELL_MY_CAR_URL,
     }
+
+
+@app.context_processor
+def _assets():
+    """Cache-busting static URLs: append the file's mtime so a CSS/JS change
+    forces browsers and Cloudflare to fetch the new version immediately."""
+    def asset(filename):
+        try:
+            v = int(os.path.getmtime(os.path.join(app.static_folder, filename)))
+        except OSError:
+            v = 0
+        return url_for("static", filename=filename, v=v)
+    return {"asset": asset}
 INT_KEYS = {"year_min", "year_max", "price_min", "price_max", "mileage_max",
             "doors", "dealer_id"}
 

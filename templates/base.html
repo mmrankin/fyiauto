@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}fyiAuto{% endblock %}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ asset('style.css') }}">
 </head>
 <body>
   <header class="site-header">
@@ -51,6 +51,6 @@
   <footer class="site-footer">
     <span>fyiAuto · {{ '{:,}'.format(stats.vehicles) if stats else '' }} vehicles in stock</span>
   </footer>
-  <script src="{{ url_for('static', filename='app.js') }}"></script>
+  <script src="{{ asset('app.js') }}"></script>
 </body>
 </html>
