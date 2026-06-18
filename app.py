@@ -86,6 +86,11 @@ def privacy():
     return render_template("privacy.html", stats=local_db.stats())
 
 
+@app.route("/terms")
+def terms():
+    return render_template("terms.html", stats=local_db.stats())
+
+
 @app.context_processor
 def _assets():
     """Cache-busting static URLs: append the file's mtime so a CSS/JS change

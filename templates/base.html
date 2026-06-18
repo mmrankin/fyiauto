@@ -4,6 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}fyiAuto{% endblock %}</title>
+  <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
+  <link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
   <link rel="stylesheet" href="{{ asset('style.css') }}">
 </head>
 <body>
@@ -49,7 +51,10 @@
 
   {% block body %}{% endblock %}
   <footer class="site-footer">
-    <a href="{{ url_for('privacy') }}">Privacy Policy</a>
+    <span class="footer-links">
+      <a href="{{ url_for('privacy') }}">Privacy Policy</a>
+      <a href="{{ url_for('terms') }}">Terms &amp; Conditions</a>
+    </span>
     <span class="copyright">Copyrights &copy; {{ current_year }} DSRPTV Digital, LLC</span>
   </footer>
   <script src="{{ asset('app.js') }}"></script>

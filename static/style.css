@@ -195,6 +195,7 @@ h1,h2,h3{margin:0 0 .4em}
 
 .site-footer{display:flex;flex-direction:column;align-items:center;gap:6px;
   text-align:center;color:var(--muted);padding:30px;font-size:13px}
+.footer-links{display:flex;gap:18px}
 .site-footer a{color:var(--muted);font-weight:600}
 .site-footer a:hover{color:var(--brand)}
 .site-footer .copyright{color:var(--muted)}
