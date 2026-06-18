@@ -83,4 +83,13 @@ def make_description(vehicle):
 
 
 def needs_description(vehicle):
-    return len((vehicle.get("description") or "").strip()) < MIN_DESC
+    """True when the stored description is too short, or is a machine placeholder
+    rather than real prose (e.g. "Nissan:Rogue:SV:2023" — no spaces / colon-list)."""
+    d = (vehicle.get("description") or "").strip()
+    if len(d) < MIN_DESC:
+        return True
+    if " " not in d:            # real descriptions are sentences with spaces
+        return True
+    if d.count(":") >= 2 and len(d) < 60:   # "Make:Model:Trim:Year" style
+        return True
+    return False
