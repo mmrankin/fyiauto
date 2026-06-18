@@ -13,8 +13,8 @@
 #   6. Test:  cloudflared tunnel --config <this file> run
 #      Then run it as a service (see DEPLOY.md / com.fyiauto.tunnel.plist).
 
-tunnel: REPLACE_WITH_TUNNEL_UUID
-credentials-file: /Users/markrankin/.cloudflared/REPLACE_WITH_TUNNEL_UUID.json
+tunnel: 6475a806-b4f3-42ec-8e4a-927b7a98a586
+credentials-file: /Users/markrankin/.cloudflared/6475a806-b4f3-42ec-8e4a-927b7a98a586.json
 
 # Be tolerant of the cold-start facet queries on novel filter combos.
 originRequest:
@@ -26,5 +26,17 @@ ingress:
     service: http://localhost:5055
   - hostname: www.fyiAuto.com
     service: http://localhost:5055
+  # ── dlrpro.com — dealer lead platform ──
+  - hostname: dlrpro.com          # Platform Admin
+    service: http://localhost:5050
+  - hostname: lead.dlrpro.com     # Lead Form
+    service: http://localhost:5002
+  - hostname: trade.dlrpro.com    # Trade-In widget
+    service: http://localhost:5001
+  - hostname: credit.dlrpro.com   # Credit Estimator
+    service: http://localhost:5003
+  # ── PanaSight analytics (serve.py) ──
+  - hostname: panasight.dlrpro.com # PanaSight dashboards + live APIs
+    service: http://localhost:8799
   # Everything else returns 404 instead of reaching the app.
   - service: http_status:404

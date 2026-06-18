@@ -35,7 +35,11 @@
           <span class="msrp">MSRP {{ v.msrp|money }}</span>
         {% endif %}
       </div>
-      <a class="cta" href="{{ check_url }}" target="_blank" rel="noopener">Check Availability</a>
+      <div class="cta-group">
+        {% for c in cta_links %}
+        <a class="cta cta-{{ c.key }}" href="{{ c.url }}" target="_blank" rel="noopener">{{ c.label }}</a>
+        {% endfor %}
+      </div>
 
       <div class="keyfacts">
         <div><label>Mileage</label>{{ v.mileage|miles }}</div>

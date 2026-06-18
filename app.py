@@ -27,6 +27,7 @@ from flask import Flask, abort, jsonify, render_template, request, url_for
 import ai_search
 import integrations
 import local_db
+import vdp_enrich
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-change-me")
@@ -191,13 +192,17 @@ def vdp(vin):
     vehicle = local_db.get_vehicle(vin)
     if not vehicle:
         abort(404, description="Vehicle not found.")
+    # Synthesize a description when the real one is too short (render-only,
+    # memoized, no DB write). Fuel/engine/transmission are filled by the sync.
+    if vdp_enrich.needs_description(vehicle):
+        vehicle["description"] = vdp_enrich.make_description(vehicle)
     related = local_db.related_vehicles(vin, vehicle.get("dealer_id"), n=4)
-    check_url = integrations.availability_url(
+    cta_links = integrations.product_links(
         vehicle.get("dealer_id"), vehicle.get("year"),
         vehicle.get("make"), vehicle.get("model"),
         image=vehicle.get("primary_photo"),
     )
-    return render_template("vdp.html", v=vehicle, related=related, check_url=check_url)
+    return render_template("vdp.html", v=vehicle, related=related, cta_links=cta_links)
 
 
 @app.route("/api/facets")

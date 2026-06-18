@@ -9,4 +9,5 @@ export SYNC_BATCH=2000           # page size for decode/stream
 
 echo "===== full sync started $(date) =====" >> sync.log
 /Users/markrankin/fyiAuto/.venv/bin/python sync.py --full >> sync.log 2>&1
+/Users/markrankin/fyiAuto/.venv/bin/python sync.py --specs-only >> sync.log 2>&1
 echo "===== full sync finished $(date) (exit $?) =====" >> sync.log

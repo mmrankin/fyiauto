@@ -345,10 +345,16 @@ def upsert_vehicles(conn, vehicles):
 
 
 def upsert_photos(conn, vin, urls):
+    # De-duplicate URLs, preserving order (the source image table repeats rows).
+    seen, uniq = set(), []
+    for u in urls:
+        if u and u not in seen:
+            seen.add(u)
+            uniq.append(u)
     conn.execute("DELETE FROM photos WHERE vin = ?", (vin,))
     conn.executemany(
         "INSERT OR REPLACE INTO photos (vin, seq, url) VALUES (?, ?, ?)",
-        [(vin, i, u) for i, u in enumerate(urls)],
+        [(vin, i, u) for i, u in enumerate(uniq)],
     )
 
 
@@ -512,6 +518,96 @@ def run(limit, dealer=None):
     )
 
 
+def _lookup_engines(dcur, ids):
+    """engine_id -> (engine_name, fuel)."""
+    out = {}
+    for grp in chunked([i for i in ids if i], 500):
+        ql = ",".join(str(int(i)) for i in grp)
+        dcur.execute(
+            f"SELECT engine_id, engine_name, Fuel FROM dbo.VIN_Data1_engine WITH (NOLOCK) "
+            f"WHERE engine_id IN ({ql}) OPTION (MAXDOP 1)")
+        for r in dcur.fetchall():
+            out[r["engine_id"]] = (_clean(r["engine_name"]), _clean(r["Fuel"]))
+    return out
+
+
+def _lookup_trans(dcur, ids):
+    """transmission_ID -> transmission name."""
+    out = {}
+    for grp in chunked([i for i in ids if i], 500):
+        ql = ",".join(str(int(i)) for i in grp)
+        dcur.execute(
+            f"SELECT transmission_ID, transmission_name, transmission_type_desc "
+            f"FROM dbo.VIN_Data1_transmission WITH (NOLOCK) "
+            f"WHERE transmission_ID IN ({ql}) OPTION (MAXDOP 1)")
+        for r in dcur.fetchall():
+            out[r["transmission_ID"]] = (_clean(r["transmission_name"])
+                                         or _clean(r["transmission_type_desc"]))
+    return out
+
+
+def run_specs_only(limit=None):
+    """Backfill fuel/engine/transmission from VIN_Data1 + the engine/transmission
+    lookup tables, by exact VIN match (batched). Only fills columns that are
+    currently empty. Checkpoints the WAL periodically so it stays small."""
+    local_db.init_db()
+    dec = source_db.connect_decode()
+    dcur = dec.cursor()
+    conn = local_db.connect()
+    conn.execute("PRAGMA foreign_keys = OFF")
+
+    q = ("SELECT vin FROM vehicles WHERE (fuel_type IS NULL OR fuel_type = '') "
+         "OR (engine IS NULL OR engine = '') OR (transmission IS NULL OR transmission = '')")
+    if limit:
+        q += f" LIMIT {int(limit)}"
+    vins = [r["vin"] for r in conn.execute(q).fetchall()]
+    print(f"Specs backfill for {len(vins)} vehicles...")
+
+    done = filled = bn = 0
+    for batch in chunked(vins, 400):
+        inlist = _quote_in(batch)
+        try:
+            dcur.execute(
+                f"SELECT VIN, engine_id, transmission_id FROM dbo.VIN_Data1 WITH (NOLOCK) "
+                f"WHERE VIN IN ({inlist}) OPTION (MAXDOP 1)")
+            rows = dcur.fetchall()
+        except Exception as e:  # noqa: BLE001
+            print(f"  ! decode batch failed: {str(e)[:60]}")
+            done += len(batch)
+            continue
+        emap = _lookup_engines(dcur, {r["engine_id"] for r in rows})
+        tmap = _lookup_trans(dcur, {r["transmission_id"] for r in rows})
+        for r in rows:
+            e = emap.get(r["engine_id"])
+            t = tmap.get(r["transmission_id"])
+            fields = {}
+            if e:
+                if e[0]:
+                    fields["engine"] = e[0]
+                if e[1]:
+                    fields["fuel_type"] = e[1]
+            if t:
+                fields["transmission"] = t
+            if not fields:
+                continue
+            sets = ", ".join(f"{k} = COALESCE(NULLIF({k}, ''), ?)" for k in fields)
+            conn.execute(f"UPDATE vehicles SET {sets} WHERE vin = ?",
+                         [fields[k] for k in fields] + [r["VIN"]])
+            filled += 1
+        conn.commit()
+        done += len(batch)
+        bn += 1
+        if bn % 25 == 0:
+            conn.execute("PRAGMA wal_checkpoint(PASSIVE)")
+            print(f"  {done}/{len(vins)} ({filled} filled)")
+
+    conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+    conn.commit()
+    conn.close()
+    dec.close()
+    print(f"Done. {filled} vehicles enriched with fuel/engine/transmission.")
+
+
 def run_photos_only(limit=None):
     """Backfill photos for vehicles already in the local DB (no inventory
     re-pull), using the fast batched tbl_parsedImage query."""
@@ -574,12 +670,17 @@ def main():
                     help="refresh the full dealer base only (no inventory)")
     ap.add_argument("--photos-only", action="store_true",
                     help="backfill photos for already-synced vehicles")
+    ap.add_argument("--specs-only", action="store_true",
+                    help="backfill fuel/engine/transmission from the decode tables")
     args = ap.parse_args()
     if args.dealers_only:
         run_dealers_only()
         return
     if args.photos_only:
         run_photos_only(args.limit)
+        return
+    if args.specs_only:
+        run_specs_only(args.limit)
         return
     if args.limit is not None:
         limit = args.limit

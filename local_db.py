@@ -34,6 +34,12 @@ def init_db():
     conn = connect()
     try:
         conn.executescript(sql)
+        # Migration: mark whether VDP spec enrichment has already been attempted
+        # (so a fruitless squish lookup runs at most once per vehicle).
+        try:
+            conn.execute("ALTER TABLE vehicles ADD COLUMN specs_checked INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass  # column already exists
         conn.commit()
     finally:
         conn.close()
@@ -516,17 +522,38 @@ def get_vehicle(vin):
         if not row:
             return None
         vehicle = dict(row)
-        vehicle["photos"] = [
-            dict(p)
-            for p in conn.execute(
-                "SELECT seq, url, width, height FROM photos WHERE vin = ? ORDER BY seq",
-                (vin,),
-            ).fetchall()
-        ]
+        # De-duplicate photos by URL, preserving order (the source image table
+        # has repeated rows for the same image).
+        seen, photos = set(), []
+        for p in conn.execute(
+            "SELECT seq, url, width, height FROM photos WHERE vin = ? ORDER BY seq",
+            (vin,),
+        ).fetchall():
+            if p["url"] and p["url"] not in seen:
+                seen.add(p["url"])
+                photos.append(dict(p))
+        vehicle["photos"] = photos
         vehicle["dealer"] = get_dealer(conn, vehicle.get("dealer_id"))
     finally:
         conn.close()
     return vehicle
+
+
+def update_vehicle(vin, fields):
+    """Write-back a few enriched columns for one vehicle (lazy VDP enrichment)."""
+    cols = [c for c in fields if c in (
+        "fuel_type", "engine", "transmission", "description", "specs_checked")]
+    if not cols:
+        return
+    conn = connect()
+    try:
+        conn.execute(
+            f"UPDATE vehicles SET {', '.join(c + ' = ?' for c in cols)} WHERE vin = ?",
+            [fields[c] for c in cols] + [vin],
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def get_dealer(conn, dealer_id):

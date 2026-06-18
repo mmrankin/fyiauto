@@ -162,9 +162,14 @@ h1,h2,h3{margin:0 0 .4em}
 .dealer h3{font-size:17px}
 .dealer p{color:var(--muted);margin:.2em 0 .6em}
 .maplink{font-size:14px}
-.cta{display:block;margin-top:14px;text-align:center;background:var(--brand);color:#fff;
+.cta-group{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.cta{display:block;text-align:center;background:var(--brand);color:#fff;
   padding:12px;border-radius:10px;font-weight:700}
-.cta:hover{background:var(--brand-ink);text-decoration:none}
+.cta:hover{filter:brightness(1.08);text-decoration:none}
+.cta-group .cta{margin-top:0}
+.cta-lead{background:var(--brand)}
+.cta-trade{background:var(--accent)}
+.cta-credit{background:var(--warn)}
 
 .vdp-detail{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:24px}
 .vdp-detail section{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);

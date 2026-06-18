@@ -12,7 +12,7 @@
     <string>com.fyiauto.tunnel</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/opt/homebrew/bin/cloudflared</string>
+        <string>/Users/markrankin/bin/cloudflared</string>
         <string>tunnel</string>
         <string>--config</string>
         <string>/Users/markrankin/fyiAuto/deploy/cloudflared-config.yml</string>
