@@ -619,3 +619,55 @@ def stats():
     finally:
         conn.close()
     return {"vehicles": n, "dealers": d, "last_sync": last[0] if last else None}
+
+
+# ---------- sitemap / SEO enumeration ----------
+
+def max_rowid():
+    conn = connect()
+    try:
+        r = conn.execute("SELECT MAX(rowid) FROM vehicles").fetchone()
+        return int(r[0] or 0)
+    finally:
+        conn.close()
+
+
+def vehicles_for_sitemap(rowid_lo, rowid_hi):
+    """VINs (+ lastmod + image) in a rowid range, only those with a photo — a
+    rowid range is an index scan, so each shard is cheap. Thin/photoless rows are
+    omitted from the sitemap (still crawlable via the SRP) to protect quality."""
+    conn = connect()
+    try:
+        return [dict(r) for r in conn.execute(
+            "SELECT vin, lot_date, primary_photo FROM vehicles "
+            "WHERE rowid BETWEEN ? AND ? AND photo_count > 0 ORDER BY rowid",
+            (rowid_lo, rowid_hi),
+        ).fetchall()]
+    finally:
+        conn.close()
+
+
+def make_model_landing(min_count=50):
+    """(make, model, count) combos worth their own indexable landing page."""
+    conn = connect()
+    try:
+        return [dict(r) for r in conn.execute(
+            "SELECT make, model, COUNT(*) AS c FROM vehicles "
+            "WHERE make <> '' AND model <> '' GROUP BY make, model "
+            "HAVING COUNT(*) >= ? ORDER BY c DESC",
+            (min_count,),
+        ).fetchall()]
+    finally:
+        conn.close()
+
+
+def make_landing(min_count=200):
+    conn = connect()
+    try:
+        return [dict(r) for r in conn.execute(
+            "SELECT make, COUNT(*) AS c FROM vehicles WHERE make <> '' "
+            "GROUP BY make HAVING COUNT(*) >= ? ORDER BY c DESC",
+            (min_count,),
+        ).fetchall()]
+    finally:
+        conn.close()

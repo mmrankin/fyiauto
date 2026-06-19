@@ -3,7 +3,36 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}fyiAuto{% endblock %}</title>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E1RHRX0NDQ"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E1RHRX0NDQ');
+  </script>
+  {# ---- SEO: title, description, canonical, social cards, structured data ---- #}
+  {% set _t = (seo.title if seo and seo.title else 'Used & New Cars for Sale — Search Listings, Prices & Photos | fyiAuto') %}
+  {% set _d = (seo.description if seo and seo.description else 'Search millions of used & new cars for sale from dealers nationwide. Compare prices, mileage, photos & full specs with AI-powered search on fyiAuto.') %}
+  {% set _canon = (seo.canonical if seo and seo.canonical else default_canonical) %}
+  {% set _img = (seo.og_image if seo and seo.og_image else default_canonical.split('/vehicle')[0].split('/?')[0].rstrip('/') ~ '/static/favicon.png') %}
+  <title>{{ _t }}</title>
+  <meta name="description" content="{{ _d }}">
+  <link rel="canonical" href="{{ _canon }}">
+  <meta name="robots" content="{{ (seo.robots if seo and seo.robots else 'index,follow') }}, max-image-preview:large">
+  <meta property="og:site_name" content="fyiAuto">
+  <meta property="og:type" content="{{ (seo.og_type if seo and seo.og_type else 'website') }}">
+  <meta property="og:title" content="{{ _t }}">
+  <meta property="og:description" content="{{ _d }}">
+  <meta property="og:url" content="{{ _canon }}">
+  <meta property="og:image" content="{{ _img }}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ _t }}">
+  <meta name="twitter:description" content="{{ _d }}">
+  <meta name="twitter:image" content="{{ _img }}">
+  {% for j in (seo.jsonld if seo and seo.jsonld else []) %}<script type="application/ld+json">{{ j|safe }}</script>
+  {% endfor %}<script type="application/ld+json">{{ site_jsonld|safe }}</script>
   <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
   <link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
   <link rel="stylesheet" href="{{ asset('style.css') }}">

@@ -15,6 +15,8 @@ Reads only from the local SQLite store populated by sync.py.
 
 import os
 import threading
+from urllib.parse import urlencode
+from xml.sax.saxutils import escape as xml_escape
 
 try:
     from dotenv import load_dotenv
@@ -22,11 +24,13 @@ try:
 except ImportError:
     pass
 
-from flask import Flask, abort, jsonify, render_template, request, url_for
+from flask import (Flask, Response, abort, jsonify, render_template, request,
+                   url_for)
 
 import ai_search
 import integrations
 import local_db
+import seo
 import vdp_enrich
 
 app = Flask(__name__)
@@ -81,14 +85,24 @@ def _footer():
     return {"current_year": datetime.date.today().year}
 
 
+@app.context_processor
+def _seo_defaults():
+    """Site-wide SEO context: Organization+WebSite JSON-LD and a fallback canonical."""
+    return {"site_jsonld": seo.site_jsonld(),
+            "site_name": seo.SITE_NAME,
+            "default_canonical": seo.abs_url(request.path)}
+
+
 @app.route("/privacy")
 def privacy():
-    return render_template("privacy.html", stats=local_db.stats())
+    return render_template("privacy.html", stats=local_db.stats(),
+        seo=seo.simple_seo("Privacy Policy", "How fyiAuto handles your data.", "/privacy"))
 
 
 @app.route("/terms")
 def terms():
-    return render_template("terms.html", stats=local_db.stats())
+    return render_template("terms.html", stats=local_db.stats(),
+        seo=seo.simple_seo("Terms of Service", "The terms for using fyiAuto.", "/terms"))
 
 
 @app.context_processor
@@ -184,6 +198,7 @@ def srp():
         dealer=dealer,
         per_page=per_page,
         per_page_options=PER_PAGE_OPTIONS,
+        seo=seo.srp_seo(filters, local_db.stats(), results),
     )
 
 
@@ -213,6 +228,10 @@ def dealers():
         zip_scope=zip_scope,
         searched=bool(zipc or make),
         stats=local_db.stats(),
+        seo=seo.simple_seo(
+            "Car Dealers Nationwide",
+            "Find car dealerships near you and browse their used & new vehicle "
+            "inventory on fyiAuto.", "/dealers"),
     )
 
 
@@ -231,7 +250,8 @@ def vdp(vin):
         vehicle.get("make"), vehicle.get("model"),
         image=vehicle.get("primary_photo"),
     )
-    return render_template("vdp.html", v=vehicle, related=related, cta_links=cta_links)
+    return render_template("vdp.html", v=vehicle, related=related,
+                           cta_links=cta_links, seo=seo.vehicle_seo(vehicle))
 
 
 @app.route("/api/facets")
@@ -297,6 +317,87 @@ def miles(value):
     except (TypeError, ValueError):
         return "—"
     return f"{n:,} mi" if n > 0 else "—"
+
+
+# ----- SEO: robots.txt + XML sitemaps -----
+
+# Cloudflare/browser cache so crawlers don't rebuild these on every fetch.
+_SITEMAP_CACHE = {"Cache-Control": "public, max-age=21600"}   # 6 hours
+
+
+@app.route("/robots.txt")
+def robots_txt():
+    # Crawl VDPs (via the sitemap) + clean make/model/category landing pages;
+    # keep crawlers out of the API and the infinite faceted-param space.
+    lines = ["User-agent: *", "Allow: /", "Disallow: /api/"]
+    for p in ("sort", "page", "per_page", "price_min", "price_max", "mileage_max",
+              "year_min", "year_max", "ext_color", "doors", "zip", "q"):
+        lines.append("Disallow: /*?*%s=" % p)
+    lines += ["", "Sitemap: %s/sitemap.xml" % seo.BASE_URL, ""]
+    return Response("\n".join(lines), mimetype="text/plain", headers=_SITEMAP_CACHE)
+
+
+@app.route("/sitemap.xml")
+def sitemap_index():
+    shards = local_db.max_rowid() // seo.SITEMAP_SHARD + 1
+    out = ['<?xml version="1.0" encoding="UTF-8"?>',
+           '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+           '<sitemap><loc>%s/sitemap-pages.xml</loc></sitemap>' % seo.BASE_URL]
+    for n in range(1, shards + 1):
+        out.append('<sitemap><loc>%s/sitemap-vehicles-%d.xml</loc></sitemap>'
+                   % (seo.BASE_URL, n))
+    out.append('</sitemapindex>')
+    return Response("\n".join(out), mimetype="application/xml", headers=_SITEMAP_CACHE)
+
+
+@app.route("/sitemap-vehicles-<int:n>.xml")
+def sitemap_vehicles(n):
+    if n < 1:
+        abort(404)
+    lo = (n - 1) * seo.SITEMAP_SHARD + 1
+    rows = local_db.vehicles_for_sitemap(lo, n * seo.SITEMAP_SHARD)
+    if not rows and n != 1:
+        abort(404)
+    out = ['<?xml version="1.0" encoding="UTF-8"?>',
+           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" '
+           'xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">']
+    for r in rows:
+        u = "<url><loc>%s/vehicle/%s</loc>" % (seo.BASE_URL, xml_escape(r["vin"]))
+        lastmod = (r.get("lot_date") or "")[:10]
+        if lastmod:
+            u += "<lastmod>%s</lastmod>" % lastmod
+        u += "<changefreq>weekly</changefreq>"
+        if r.get("primary_photo"):
+            u += "<image:image><image:loc>%s</image:loc></image:image>" % xml_escape(r["primary_photo"])
+        out.append(u + "</url>")
+    out.append('</urlset>')
+    return Response("\n".join(out), mimetype="application/xml", headers=_SITEMAP_CACHE)
+
+
+@app.route("/sitemap-pages.xml")
+def sitemap_pages():
+    out = ['<?xml version="1.0" encoding="UTF-8"?>',
+           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+
+    def add(path, pri=None):
+        u = "<url><loc>%s</loc>" % xml_escape(seo.BASE_URL + path)
+        if pri:
+            u += "<priority>%s</priority>" % pri
+        out.append(u + "</url>")
+
+    add("/", "1.0")
+    add("/dealers", "0.6")
+    add("/privacy")
+    add("/terms")
+    for cat in ("suv", "pickup", "sedan", "coupe", "convertible", "hatchback",
+                "van", "wagon", "truck"):
+        add("/?category=%s" % cat, "0.8")
+    for r in local_db.make_landing(200):
+        add("/?" + urlencode({"make": r["make"]}), "0.7")
+    for r in local_db.make_model_landing(50):
+        add("/?" + urlencode({"make": r["make"], "model": r["model"]}), "0.6")
+    out.append('</urlset>')
+    return Response("\n".join(out), mimetype="application/xml", headers=_SITEMAP_CACHE)
 
 
 if __name__ == "__main__":
