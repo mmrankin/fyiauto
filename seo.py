@@ -13,7 +13,7 @@ from urllib.parse import urlencode
 # Public origin (override per environment). Used for canonical + sitemap URLs.
 BASE_URL = os.environ.get("SITE_BASE_URL", "https://fyiauto.com").rstrip("/")
 SITE_NAME = "fyiAuto"
-DEFAULT_OG_IMAGE = BASE_URL + "/static/apple-touch-icon.png"
+DEFAULT_OG_IMAGE = BASE_URL + "/static/og-default.png"
 
 SITEMAP_SHARD = 50000   # rowids per vehicle-sitemap shard (≤50k URLs per file)
 

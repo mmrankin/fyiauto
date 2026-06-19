@@ -16,7 +16,7 @@
   {% set _t = (seo.title if seo and seo.title else 'Used & New Cars for Sale — Search Listings, Prices & Photos | fyiAuto') %}
   {% set _d = (seo.description if seo and seo.description else 'Search millions of used & new cars for sale from dealers nationwide. Compare prices, mileage, photos & full specs with AI-powered search on fyiAuto.') %}
   {% set _canon = (seo.canonical if seo and seo.canonical else default_canonical) %}
-  {% set _img = (seo.og_image if seo and seo.og_image else default_canonical.split('/vehicle')[0].split('/?')[0].rstrip('/') ~ '/static/favicon.png') %}
+  {% set _img = (seo.og_image if seo and seo.og_image else 'https://fyiauto.com/static/og-default.png') %}
   <title>{{ _t }}</title>
   <meta name="description" content="{{ _d }}">
   <link rel="canonical" href="{{ _canon }}">
